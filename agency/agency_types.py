@@ -1,6 +1,6 @@
 from enum import Enum
 
-from pydantic import BaseModel, validator
+from pydantic import BaseModel, field_validator as validator
 from typing import Optional, List, Callable, Union, Any, Literal
 
 class Genders(str, Enum):
