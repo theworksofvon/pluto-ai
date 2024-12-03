@@ -1,14 +1,39 @@
 import asyncio
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Union, Optional, Any
 from .agent import Agent
+from .reasoner import ReasoningEngine
 
 class Agency:
     def __init__(self, agents: List[Agent]) -> None:
+        """
+        Initialize the Agency with agents and set up the pilot.
+        """
         self.agents: Dict[str, Agent] = {agent.name: agent for agent in agents}
         self.pilot = next((agent for agent in agents if agent.role == "pilot"), None)
+        self.memory = None
+        self.context: Dict[str, Any] = {}
+        self.reasoner = None
+        self.tools = next((agent.tools for agent in agents if agent.tools), None)
         
         if not self.pilot:
             raise ValueError("Agency must have at least one pilot agent.")
+        
+    def _establish_reasoning_engine(self) -> None:
+        if self.pilot is None:
+            raise ValueError("Pilot agent must be initialized")
+        self.reasoner = ReasoningEngine(agent=self.pilot, tools=self.tools)
+
+    def _find_agent_by_tool(self, tool_name: str) -> Optional[Agent]:
+        for agent_name, agent in self.agents.items():
+            if agent.tools and any(tool.name == tool_name for tool in agent.tools):
+                return agent
+        return None
+    
+    def update_context(self, key: str, value: Any) -> None:
+        """
+        Updates the shared context with new information.
+        """
+        self.context[key] = value
 
     async def send_message(self, sender: str, message: str, receiver: Optional[str] = None) -> Union[str, None]:
         """
@@ -33,34 +58,58 @@ class Agency:
 
     async def run(self):
         """
-        Executes the tasks for all worker agents and facilitates communication with the pilot.
-        Processes all worker agents concurrently.
+        Executes tasks for all worker agents, facilitates communication with the pilot,
+        and incorporates reasoning and decision-making.
         """
-
         async def process_agent(agent: Agent):
             if agent.role == "crew":
                 print(f"Running task for worker agent: {agent.name}")
 
-                max_iterations = 3
+                max_iterations = 2
                 feedback_iterations = 0
-                async for result in agent.run():
-                    print(f"Task result from {agent.name}: {result}")
+                
+                # Create generator
+                gen = agent.run()
+                
+                try:
+                    # Start the generator
+                    result = await gen.__anext__()
 
-                    feedback = await self.send_message(sender=agent.name, message=result)
-
-                    # Send feedback to agent
-                    await agent.run().asend(feedback)
-                    feedback_iterations += 1
-
-                    if feedback_iterations >= max_iterations:
-                        break;
-
+                    # must be string for prompting
+                    if not isinstance(str, result):
+                        result = str(result)
+                    
+                    while feedback_iterations < max_iterations:
+                        print(f"Task result from {agent.name}: {result}")
+                        
+                        # Update shared context
+                        self.update_context(agent.name, result)
+                        
+                        # Get feedback
+                        feedback = await self.send_message(sender=agent.name, message=result)
+                        
+                        # Send feedback and get next result
+                        result = await gen.asend(feedback)
+                        feedback_iterations += 1
+                        
+                except StopAsyncIteration:
+                    pass
+                    
                 return result
 
+        # Establish Reasoning engine and decision-making first: Determine which agents to run
+        self._establish_reasoning_engine()
+        action_plan = await self.reasoner.reason()
+        agent = self._find_agent_by_tool(action_plan.plan.tool_name)
         tasks = [
-            process_agent(agent=agent) for agent in self.agents.items() if agent.role == 'crew'
+            process_agent(agent=agent)
         ]
 
+        # Process all selected agents concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Update context with results
+        # for action, result in zip(next_actions, results):
+        #     self.update_context(action, result)
 
         return results

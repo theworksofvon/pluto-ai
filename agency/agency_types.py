@@ -24,7 +24,7 @@ class Emotions(BaseModel):
 
     trigger_words: List[str] = [] # Words that will trigger aggressive responses from the model
 
-    @validator('trigger_words', each_item=True)
+    @validator('trigger_words', mode="before")
     def validate_single_word(cls, word):
         if " " in word:
             raise ValueError(f"'{word}' contains spaces and is not a single word.")
@@ -40,7 +40,7 @@ Roles = Literal["pilot", "crew"]
 
 # A class to go deeper into the "mind" of the model and adjust specific things that aren't included in its instructions
 class Tendencies(BaseModel):
-    emtions: Emotions
+    emotions: Emotions
 
     # Communication styles
     tone: Optional[Tones] = Tones.CASUAL
@@ -48,7 +48,6 @@ class Tendencies(BaseModel):
 
     # Behavioral Traits
     risk_tolerance: float  # Scale 0-1 (risk-averse vs. risk-taking)
-    adaptability: float  # Scale 0-1 (resistant vs. flexible)
     patience_level: float  # Scale 0-1 (impatient vs. patient)
     decision_making: str  # "impulsive", "deliberate", "balanced", etc.
 

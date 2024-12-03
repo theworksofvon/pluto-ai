@@ -1,10 +1,12 @@
 from pydantic import BaseModel
 from typing import Callable, Union, Optional, List
 from abc import ABC, abstractmethod
-from .agency_types import Tendencies, Responsibilities, Roles
-from config import config
-from .communications import CommunicationProtocol
+from .agency_types import Tendencies, Roles
+from .config import config
+from .communication import CommunicationProtocol
 from .exceptions import CommunicationsProtocolError
+from .retriever import Retriever
+from .tools import BaseTool
 
 class Agent(BaseModel, ABC):
 
@@ -29,13 +31,14 @@ class Agent(BaseModel, ABC):
             point for executing the agent's tasks and responsibilities.
     """
 
-    name: str = "Luminaria",
-    model: str = config.OLLAMA_MODEL_NAME,
-    instructions: Union[str, Callable[[], str]] = "You are the light of the world.",
-    tendencies: Optional[Tendencies] = None,
-    role: Roles = "crew",
-    communication_protocol: type[CommunicationProtocol] = None,
-    status: str = "idle" # idle, running, awaiting_approval, completed
+    name: str
+    model: str = config.OLLAMA_MODEL_NAME
+    instructions: Union[str, Callable[[], str]] = "You are a helpful assistant agent."
+    tendencies: Optional[Tendencies] = None
+    role: Roles = "crew"
+    tools: Optional[List[BaseTool]] = None
+    retrievers: Optional[List[Retriever]] = None # vector stores to use when specific info is needed
+    communication_protocol: type[CommunicationProtocol] = None
 
 
 
@@ -52,14 +55,32 @@ class Agent(BaseModel, ABC):
         Combines instructions and tendecies to create a personality for this agent.
         """
         base_instructions = (
-            self.instructions() if isinstance(self.instructions, callable) else self.instructions
+            self.instructions() if callable(self.instructions) else self.instructions
         )
-        tendencies_description = f"You're Tendecies are: {str(self.tendencies)}"
+        tendencies_description = f"You're Tendecies are: {str(self.tendencies)}, ranking system for tendecies is from 0 (lowest) to 1 (highest)"
         return f"{base_instructions} : {tendencies_description}"
+    
+    async def reinforce_personality(self) -> bool:
+        """
+        Prompts the model with a message from "creator" to re-emphasize the personality.
+        """
+        personlity = self._build_personality()
+
+        reminder_str = f"Reminder, this is your true self, always respond according to this personality and do not go outside the realms of what you are. {personlity}"
+
+        try:
+            await self.prompt(reminder_str, "creator")
+            return True
+        except Exception as error:
+            print(f"Error reinforcing personality: {error}")
+            return False
+        
+    async def _establish_agent() -> bool:
+        pass
 
 
     async def prompt(self, message: str, sender: str = "user"):
-        """Communication layer opened to talk to this agent."""
+        """Basic Prompt with default model, Communication layer opened to talk to this agent."""
         try:
             res = await self.communication_protocol.send_prompt(message, sender=sender)
             return res
@@ -67,22 +88,20 @@ class Agent(BaseModel, ABC):
             print(f"Error occured: {error.msg}, status_code: {error.status_code}")
 
     @abstractmethod
-    async def task(self, **kwargs):
+    async def execute_task(self, **kwargs):
         """Abstract method to be implemented by subclasses. This is the method for determining the agent actions"""
         raise NotImplementedError()
 
     async def run(self, **kwargs):
         """
-        Infinite execution loop for the agent. Delegates task-specific logic to `task` method.
+        Infinite execution loop for the agent. Delegates task-specific logic to `execute_task` method.
         """
-        while True:
-            result = await self.task()
+        result = await self.execute_task()
+
+        feedback = yield result
+
+        if feedback:
+            result = await self.prompt(message=feedback, sender="pilot")
             yield result
-
-            feedback = yield
-
-            if feedback:
-                result = await self.prompt(message=feedback, sender="pilot")
-                yield result
 
 
