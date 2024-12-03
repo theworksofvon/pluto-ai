@@ -96,7 +96,7 @@ class Agent(BaseModel, ABC):
         """
         Infinite execution loop for the agent. Delegates task-specific logic to `execute_task` method.
         """
-        result = await self.execute_task()
+        result = await self.execute_task(**kwargs)
 
         feedback = yield result
 

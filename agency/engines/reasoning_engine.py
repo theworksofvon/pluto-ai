@@ -92,7 +92,7 @@ Please decide:
 2. Why did you choose this tool?
 3. How important is this action (priority 1-5)?
 
-***RESPOND IN JSON FORMAT AND ONLY THIS RESPONSE YOU ARE LIMITED TO THIS RESPONSE***IMPORTANT:
+***RESPOND IN JSON FORMAT, VALUES FOR TOOL AND REASON ARE STRINGS, PRIORITY IS A NUMBER AND ONLY THIS RESPONSE YOU ARE LIMITED TO THIS RESPONSE***IMPORTANT:
 tool: <tool_name>
 reason: <your_reason>
 priority: <1-5>

@@ -1,7 +1,7 @@
 import asyncio
 from typing import List, Dict, Union, Optional, Any
 from .agent import Agent
-from .reasoner import ReasoningEngine
+from .engines.reasoning_engine import ReasoningEngine
 
 class Agency:
     def __init__(self, agents: List[Agent]) -> None:
