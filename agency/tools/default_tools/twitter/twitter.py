@@ -1,7 +1,7 @@
-from typing import Any, Dict, Optional
-import aiohttp
+from typing import Optional
+import httpx
 from pydantic import BaseModel, Field
-from tools import BaseTool, ToolResult
+from agency.tools import BaseTool, ToolResult
 from requests_oauthlib import OAuth1
 from requests import Request
 
@@ -80,26 +80,26 @@ class TwitterTool(BaseTool):
             # Get signed headers
             headers = self._generate_signed_headers("POST", url, payload)
             
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
                     url,
                     headers=headers,
                     json=payload
-                ) as response:
-                    if response.status == 201:
-                        data = await response.json()
-                        return ToolResult(
-                            success=True,
-                            data={"tweet_id": data["data"]["id"], "text": data["data"]["text"]},
-                            metadata={"created_at": data["data"].get("created_at")}
-                        )
-                    else:
-                        error_data = await response.json()
-                        return ToolResult(
-                            success=False,
-                            data=None,
-                            error=str(error_data)
-                        )
+                )
+                if response.status == 201:
+                    data = await response.json()
+                    return ToolResult(
+                        success=True,
+                        data={"tweet_id": data["data"]["id"], "text": data["data"]["text"]},
+                        metadata={"created_at": data["data"].get("created_at")}
+                    )
+                else:
+                    error_data = await response.json()
+                    return ToolResult(
+                        success=False,
+                        data=None,
+                        error=str(error_data)
+                    )
                         
         except Exception as e:
             return ToolResult(

@@ -26,7 +26,9 @@ class Agency:
     def _find_agent_by_tool(self, tool_name: str) -> Optional[Agent]:
         for agent_name, agent in self.agents.items():
             if agent.tools and any(tool.name == tool_name for tool in agent.tools):
+                print(f"agent found, {agent_name}")
                 return agent
+        print("No agent found")
         return None
     
     def update_context(self, key: str, value: Any) -> None:
@@ -56,16 +58,15 @@ class Agency:
             res = await self.pilot.prompt(message=message, sender=sender)
         return res
 
-    async def run(self):
+    async def run(self, starting_prompt: Optional[str] = None):
         """
         Executes tasks for all worker agents, facilitates communication with the pilot,
         and incorporates reasoning and decision-making.
         """
         async def process_agent(agent: Agent):
-            if agent.role == "crew":
                 print(f"Running task for worker agent: {agent.name}")
 
-                max_iterations = 2
+                max_iterations = 1
                 feedback_iterations = 0
                 
                 # Create generator
@@ -75,8 +76,10 @@ class Agency:
                     # Start the generator
                     result = await gen.__anext__()
 
+                    print(f"RESULT: {result}")
+
                     # must be string for prompting
-                    if not isinstance(str, result):
+                    if not isinstance(result, str):
                         result = str(result)
                     
                     while feedback_iterations < max_iterations:
@@ -87,19 +90,21 @@ class Agency:
                         
                         # Get feedback
                         feedback = await self.send_message(sender=agent.name, message=result)
+                        print(f"FEEDBACK: {feedback}")
                         
                         # Send feedback and get next result
                         result = await gen.asend(feedback)
                         feedback_iterations += 1
                         
-                except StopAsyncIteration:
-                    pass
+                except StopAsyncIteration as error:
+                    print(error)
+                    return None
                     
                 return result
 
         # Establish Reasoning engine and decision-making first: Determine which agents to run
         self._establish_reasoning_engine()
-        action_plan = await self.reasoner.reason()
+        action_plan = await self.reasoner.reason(task=starting_prompt)
         agent = self._find_agent_by_tool(action_plan.plan.tool_name)
         tasks = [
             process_agent(agent=agent)

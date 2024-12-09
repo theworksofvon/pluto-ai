@@ -1,14 +1,14 @@
 from agency.tools.base_tool import ToolResult
-from tools import BaseTool
+from agency.tools import BaseTool
 
 class GenerativeArtTool(BaseTool):
     
     
-    def validate_input(self) -> None:
-        pass
+    def validate_input(self, **kwargs) -> None:
+        return True
 
 
-    async def execute(self) -> None:
+    async def execute(self, **kwargs) -> None:
         pass
 
 

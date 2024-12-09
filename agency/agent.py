@@ -5,10 +5,16 @@ from .agency_types import Tendencies, Roles
 from .config import config
 from .communication import CommunicationProtocol
 from .exceptions import CommunicationsProtocolError
-from .retriever import Retriever
+from .retrievers.retriever import BaseRetriever
 from .tools import BaseTool
+from .tools.default_tools import gen_art_tool
+from .session import Session
 
 class Agent(BaseModel, ABC):
+
+    model_config = {
+        "arbitrary_types_allowed": True
+    }
 
     """
     Base AGENT class that stores general agent info, personality, and the task the agent
@@ -36,9 +42,10 @@ class Agent(BaseModel, ABC):
     instructions: Union[str, Callable[[], str]] = "You are a helpful assistant agent."
     tendencies: Optional[Tendencies] = None
     role: Roles = "crew"
-    tools: Optional[List[BaseTool]] = None
-    retrievers: Optional[List[Retriever]] = None # vector stores to use when specific info is needed
+    tools: Optional[List[BaseTool]] = [gen_art_tool]
+    retrievers: Optional[List[BaseRetriever]] = None # vector stores to use when specific info is needed
     communication_protocol: type[CommunicationProtocol] = None
+    
 
 
 
@@ -49,6 +56,23 @@ class Agent(BaseModel, ABC):
             model=self.model,
             personality=self._build_personality(),
         )
+        self.active_session = None
+
+
+    async def start_session(self) -> Session:
+        """Create and activate a new session"""
+        session = Session(agent_id=self.name)
+        self._sessions[session.session_id] = session
+        self.active_session = session
+        return session
+        
+    async def load_session(self, session_id: str) -> Optional[Session]:
+        """Load an existing session"""
+        session = self._sessions.get(session_id)
+        if session:
+            self.active_session = session
+        return session
+
 
     def _build_personality(self) -> str:
         """

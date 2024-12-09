@@ -2,7 +2,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
 import json
-from tools import BaseTool
+from agency.tools import BaseTool
 
 
 @dataclass
@@ -44,8 +44,8 @@ class ReasoningEngine:
         self.tools = tools
         self.context = ReasonerContext(
             task="",
-            tools_available=[tool.name for tool in tools.values()],
-            current_state={},
+            tools_available=([tool.name for tool in tools] if tools else [""]),
+            last_state={},
             history=[]
         )
     
@@ -73,11 +73,11 @@ class ReasoningEngine:
     def _create_decision_prompt(self) -> str:
         """Create a prompt for the agent to make a decision"""
         tools_info = "\n".join([
-            f"- {name}: {tool.description}\n"
-            for name, tool in self.tools.items()
+            f"- {tool.name}: {tool.description}\n"
+            for tool in self.tools
         ])
         
-        return f"""Given the following task and available tools, decide which tool would be most appropriate to use.
+        return f"""Given the following task and ONLY THE AVAILABLE TOOLS, decide which tool would be most appropriate to use.
 
 Task: {self.context.task}
 
@@ -86,29 +86,30 @@ Available Tools:
 
 Current Context:
 {self.context}
-
 Please decide:
 1. Which tool should be used?
 2. Why did you choose this tool?
 3. How important is this action (priority 1-5)?
 
 ***RESPOND IN JSON FORMAT, VALUES FOR TOOL AND REASON ARE STRINGS, PRIORITY IS A NUMBER AND ONLY THIS RESPONSE YOU ARE LIMITED TO THIS RESPONSE***IMPORTANT:
-tool: <tool_name>
+tool_name: <tool_name>
 reason: <your_reason>
 priority: <1-5>
 """
     
+
     def _parse_agent_response(self, response: str) -> ActionPlan:
         """Parse the agent's response into an ActionPlan"""
         # Implementation would parse the structured response
         # This is a simplified example
         try:
             parsed_response = json.loads(response)
+            print(f"Parse: {parsed_response}")
             
             return ActionPlan(
-                tool_name=parsed_response.tool_name,
-                reason=parsed_response.reason,
-                priority=parsed_response.priority
+                tool_name=parsed_response["tool_name"],
+                reason=parsed_response["reason"],
+                priority=parsed_response["priority"]
             )
         except Exception as e:
             raise ValueError(f"Failed to parse agent response: {e}")
@@ -142,6 +143,6 @@ priority: <1-5>
         # result = await self.execute_plan(plan)
         
         # Update last state since this will have already been reasoned
-        self.context.last_state.update(LastState(last_reason=plan.reason, last_task=task))
+        self.context.last_state = LastState(last_reason=plan.reason, last_task=task)
         
-        return ReasonerResponse(plan=plan, reason=plan.reasoning)
+        return ReasonerResponse(plan=plan, reason=plan.reason)

@@ -3,7 +3,7 @@ from agency.agency_types import Tendencies
 
 class AggregatorAgent(Agent):
 
-    async def execute_task():
+    async def execute_task(self, **kwargs):
         print("aggregator doing stuff")
 
 

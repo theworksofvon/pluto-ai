@@ -1,6 +1,5 @@
 import os
-from typing import Union, Dict, List
-import asyncio
+from typing import Dict, List, Optional
 import httpx
 from .config import config
 from .exceptions import CommunicationsProtocolError
@@ -26,7 +25,7 @@ class CommunicationProtocol:
         self.personality = personality  # Personality of the agent
         self.history: List[Dict[str, str]] = []  # To track the context of the conversation
 
-    async def send_prompt(self, prompt: str, sender: str) -> str:
+    async def send_prompt(self, prompt: str, sender: str, format: Optional[Dict] = None) -> str:
         """
         Send a prompt to the model, including personality and history, and return the response.
         Mainly for agent -> agent communication.
@@ -38,11 +37,11 @@ class CommunicationProtocol:
             str: The model's response.
         """
         full_prompt = self._build_prompt(prompt, sender)
-        print(f"Prompt: {prompt}")
+
         if self.model == "openai":
             response = await self._send_to_openai(full_prompt)
         else:
-            response = await self._send_to_ollama(full_prompt)
+            response = await self._send_to_ollama(full_prompt, format)
         try:
             self._update_history("user", prompt)
             self._update_history("assistant", response)
@@ -64,7 +63,7 @@ class CommunicationProtocol:
         context = "\n".join([f"{item['role']}: {item['content']}" for item in self.history[-5:]])  # Last 5 interactions
         return f"{self.personality}\n\n{context}\n\nUser - {sender}: {prompt}"
 
-    async def _send_to_ollama(self, prompt: str) -> str:
+    async def _send_to_ollama(self, prompt: str, format: Optional[Dict] = None) -> str:
         """
         Handle communication with a local Ollama model.
 
@@ -78,8 +77,7 @@ class CommunicationProtocol:
         async with httpx.AsyncClient() as client:
 
             try:
-                print(prompt)
-                res = await client.post(url, json={"prompt": prompt, "stream": False, "model": self.model})
+                res = await client.post(url, json={"prompt": prompt, "stream": False, "model": self.model, "format": format})
                 res.raise_for_status()
                 return res.json()["response"]
             except httpx.RequestError as error:
@@ -123,7 +121,6 @@ class CommunicationProtocol:
             content (str): The content of the message.
         """
         self.history.append({"role": role, "content": content})
-        print(self.history)
 
     def clear_history(self) -> None:
         """
