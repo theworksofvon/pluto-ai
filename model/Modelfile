@@ -1,4 +1,4 @@
-FROM llama3.2
+FROM <insert fine tuned model>
 PARAMETER temperature 1
 
 SYSTEM """

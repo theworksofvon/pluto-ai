@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Callable, Union, Optional, List
+from typing import Callable, Union, Optional, List, Dict
 from abc import ABC, abstractmethod
 from .agency_types import Tendencies, Roles
 from .config import config
@@ -103,10 +103,10 @@ class Agent(BaseModel, ABC):
         pass
 
 
-    async def prompt(self, message: str, sender: str = "user"):
+    async def prompt(self, message: str, sender: str = "user", format: Optional[Dict] = None):
         """Basic Prompt with default model, Communication layer opened to talk to this agent."""
         try:
-            res = await self.communication_protocol.send_prompt(message, sender=sender)
+            res = await self.communication_protocol.send_prompt(message, sender=sender, format=format)
             return res
         except CommunicationsProtocolError as error:
             print(f"Error occured: {error.msg}, status_code: {error.status_code}")

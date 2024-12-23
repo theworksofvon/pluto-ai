@@ -25,6 +25,12 @@ class CommunicationProtocol:
         self.personality = personality  # Personality of the agent
         self.history: List[Dict[str, str]] = []  # To track the context of the conversation
 
+    ## TODO: validate every response that goes out
+    def _validate_llm_response(self, response: str):
+        if response:
+            return True
+        return False
+
     async def send_prompt(self, prompt: str, sender: str, format: Optional[Dict] = None) -> str:
         """
         Send a prompt to the model, including personality and history, and return the response.

@@ -76,8 +76,6 @@ class Agency:
                     # Start the generator
                     result = await gen.__anext__()
 
-                    print(f"RESULT: {result}")
-
                     # must be string for prompting
                     if not isinstance(result, str):
                         result = str(result)
@@ -90,7 +88,6 @@ class Agency:
                         
                         # Get feedback
                         feedback = await self.send_message(sender=agent.name, message=result)
-                        print(f"FEEDBACK: {feedback}")
                         
                         # Send feedback and get next result
                         result = await gen.asend(feedback)

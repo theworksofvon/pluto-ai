@@ -26,4 +26,4 @@ aggregator_personality = Tendencies(**{
 })
 
 
-aggregator = AggregatorAgent(name="Aggregator", instructions="You are an aggregation agent", tendencies=aggregator_personality, role="pilot")
+aggregator = AggregatorAgent(name="Aggregator", instructions="You are an aggregation", tendencies=aggregator_personality, role="pilot")
