@@ -110,8 +110,4 @@ class Agency:
         # Process all selected agents concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # Update context with results
-        # for action, result in zip(next_actions, results):
-        #     self.update_context(action, result)
-
         return results
